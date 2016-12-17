@@ -13,9 +13,9 @@ module.exports = function (file, opts) {
     if (!opts) opts = {};
     if (opts.flags === undefined) opts.flags = 'r';
     if (opts.mode === undefined) opts.mode = 0666;
-    
+
     var fa = new FA(file, opts);
-    
+
     if (opts.fd === undefined) {
         fs.open(file, opts.flags, opts.mode, function (err, fd) {
             if (err) return fa.emit('error', err)
@@ -43,15 +43,15 @@ FA.prototype._read = onopen(function (start, end, cb, rev) {
     var self = this;
     if (start === undefined) start = 0;
     if (start < 0) return self._readReverse(start, end, cb, rev);
-    
+
     if (end !== undefined && end <= start) {
         return nextTick(function () { cb(null, null) });
     }
-    
+
     var found = false;
     var line = null;
     var lines = rev && [];
-    
+
     var index = 0, offset = 0;
     for (var i = start; i > 0; i--) {
         if (self.offsets[i] !== undefined) {
@@ -60,11 +60,11 @@ FA.prototype._read = onopen(function (start, end, cb, rev) {
             break;
         }
     }
-    
+
     if (index === start) line = [];
-    
+
     var buffer = new Buffer(self.bufsize);
-    
+
     (function _read () {
         fs.read(self.fd, buffer, 0, buffer.length, offset,
         function (err, bytesRead, buf) {
@@ -73,32 +73,32 @@ FA.prototype._read = onopen(function (start, end, cb, rev) {
                 if (rev) {
                     lines.forEach(function (line) { cb(null, line) });
                 }
-                else if (line && line.length) cb(null, Buffer(line));
+                else if (line && line.length) cb(null, new Buffer(line));
                 return cb(null, null);
             }
-            
+
             for (var i = 0; i < bytesRead; i++) {
                 if (index >= start) {
                     if (!line) line = [];
                     line.push(buf[i]);
                 }
-                
+
                 if (buf[i] === 0x0a) {
                     self.offsets[++index] = offset + i + 1;
-                    
+
                     if (index === start) {
                         line = [];
                     }
                     else if (index > start) {
                         if (rev) {
-                            lines.unshift(Buffer(line));
+                            lines.unshift(new Buffer(line));
                         }
                         else {
-                            cb(null, Buffer(line));
+                            cb(null, new Buffer(line));
                         }
                         line = [];
                     }
-                    
+
                     if (index === end) {
                         found = true;
                         line = null;
@@ -110,7 +110,7 @@ FA.prototype._read = onopen(function (start, end, cb, rev) {
                     }
                 }
             }
-            
+
             if (!found) {
                 offset += bytesRead;
                 _read();
@@ -123,7 +123,7 @@ FA.prototype._stat = function (cb) {
     var self = this;
     fs.stat(self.file, function (err, stat) {
         if (err) return cb && cb(err);
-        
+
         self.stat = stat;
         self.emit('stat', stat);
         if (cb) cb(null, stat);
@@ -138,15 +138,15 @@ FA.prototype._readReverse = onopen(function (start, end, cb, rev) {
             self._readReverse(start, end, cb, rev)
         });
     }
-    
+
     var found = false;
-    
+
     if (end === 0) return nextTick(function () {
         cb(null, null);
     });
     if (end === undefined) end = 0;
     var index = 0, offset = self.stat.size;
-    
+
     if (end < 0 && start < 0) {
         for (var i = start; i >= 0; i--) {
             if (self.offsets[i] !== undefined) {
@@ -167,10 +167,10 @@ FA.prototype._readReverse = onopen(function (start, end, cb, rev) {
     }
     var buffer = new Buffer(self.bufsize);
     offset = Math.max(0, offset - buffer.length);
-    
+
     var lines = null;
     if (index === end) lines = [];
-    
+
     var firstNewline = true;
     (function _read () {
         fs.read(self.fd, buffer, 0, buffer.length, offset,
@@ -179,15 +179,15 @@ FA.prototype._readReverse = onopen(function (start, end, cb, rev) {
             if (bytesRead === 0 || offset < 0) {
                 if (!rev) {
                     lines.forEach(function (xs) {
-                        cb(null, Buffer(xs));
+                        cb(null, new Buffer(xs));
                     });
                 }
                 else if (lines && lines.length) {
-                    cb(null, Buffer(lines[0]));
+                    cb(null, new Buffer(lines[0]));
                 }
                 return cb(null, null);
             }
-            
+
             for (var i = bytesRead - 1; i >= 0; i--) {
                 if (buf[i] === 0x0a) {
                     if (firstNewline && i + 1 < bytesRead && index === 0) {
@@ -200,7 +200,7 @@ FA.prototype._readReverse = onopen(function (start, end, cb, rev) {
                     }
                     firstNewline = false;
                     self.offsets[--index] = offset + i;
-                    
+
                     if (index === end) {
                         lines = [];
                     }
@@ -208,11 +208,11 @@ FA.prototype._readReverse = onopen(function (start, end, cb, rev) {
                         found = true;
                         if (!rev && lines) {
                             lines.forEach(function (xs) {
-                                cb(null, Buffer(xs));
+                                cb(null, new Buffer(xs));
                             });
                         }
                         else if (lines && lines.length) {
-                            cb(null, Buffer(lines[0]));
+                            cb(null, new Buffer(lines[0]));
                         }
                         cb(null, null);
                         lines = null;
@@ -221,20 +221,20 @@ FA.prototype._readReverse = onopen(function (start, end, cb, rev) {
                     else if (index < end) {
                         if (!lines) lines = [];
                         if (rev && lines.length) {
-                            cb(null, Buffer(lines[0]));
+                            cb(null, new Buffer(lines[0]));
                             lines.splice(1);
                         }
                         lines.unshift([]);
                     }
                 }
-                
+
                 if (index < end) {
                     if (!lines) lines = [];
                     if (!lines[0]) lines[0] = [];
                     lines[0].unshift(buf[i]);
                 }
             }
-            
+
             if (!found) {
                 offset -= bytesRead;
                 _read();
@@ -255,12 +255,12 @@ FA.prototype.slice = function (start, end, cb) {
         end = undefined;
     }
     if (typeof cb === 'function') res = [];
-    
+
     var tr = through();
     this._read(start, end, function (err, line) {
         if (err) return tr.emit('error', err);
         else tr.push(line)
-        
+
         if (cb && line === null) cb(null, res)
         else if (cb) res.push(line)
     });
@@ -279,12 +279,12 @@ FA.prototype.sliceReverse = function (start, end, cb) {
         end = undefined;
     }
     if (typeof cb === 'function') res = [];
-    
+
     var tr = through();
     this._read(start, end, function (err, line) {
         if (err) return tr.emit('error', err);
         else tr.push(line)
-        
+
         if (cb && line === null) cb(null, res)
         else if (cb) res.push(line)
     }, true);
@@ -298,43 +298,43 @@ FA.prototype.follow = function (start, end) {
         this.closed = true;
         this.emit('close');
     };
-    
+
     var slice = this.slice(start, end);
     var writing = false;
     var changed = false;
-    
+
     slice.once('end', function () {
         if (tr.closed) return;
         var w = fs.watch(self.file, { fd: self.fd });
         tr.once('close', function () { w.close() });
         self.once('close', function () { w.close() });
-        
+
         if (!self.stat) self._stat(onstat);
         else onstat(null, self.stat);
-        
+
         w.on('change', function (type) {
             if (type !== 'change') return;
             if (!writing) self._stat(onstat);
             changed = true;
         });
-        
+
     });
     var lastStat = null;
     slice.pipe(tr, { end: false });
     self.once('close', function () { tr.push(null) });
     tr.once('close', function () { tr.push(null) });
-    
+
     var out = tr.pipe(split()).pipe(through(function (line, _, next) {
         if (line.length) this.push(line + '\n');
         next();
     }));
     tr.on('error', function (err) { out.emit('error', err) });
     return out;
-    
+
     function onstat (err, stat) {
         if (err) return tr.emit('error', err);
         if (!lastStat) return lastStat = stat;
-        
+
         if (stat.size < lastStat.size) {
             tr.emit('truncate', lastStat.size - stat.size);
         }
@@ -355,7 +355,7 @@ FA.prototype.follow = function (start, end) {
             });
             stream.pipe(tr, { end: false });
         }
-        
+
         lastStat = stat;
     }
 };
