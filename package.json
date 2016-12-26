@@ -4,12 +4,12 @@
   "description": "stream file slices by line number indexes",
   "main": "index.js",
   "dependencies": {
-    "inherits": "~1.0.0",
-    "split2": "^0.2.1",
-    "through2": "^0.6.5"
+    "inherits": "^2.0.3",
+    "split2": "^2.1.0",
+    "through2": "^2.0.3"
   },
   "devDependencies": {
-    "tap": "^0.7.1"
+    "tap": "^8.0.1"
   },
   "scripts": {
     "test": "tap test/*.js"
